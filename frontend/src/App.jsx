@@ -8,6 +8,12 @@ import PrivateRoute from "@/routes/PrivateRoute";
 import Navbar from "@/components/Navbar";
 import DashboardLayout from "@/pages/dashboard/DashboardLayout";
 import Overview from "@/pages/dashboard/Overview";
+import EventListing from "./pages/EventListing";
+import AddGuest from "./pages/AddGuest";
+import ApproveGuests from "./pages/ApproveGuests";
+import Analytics from "./pages/Analytics";
+import EventCalendar from "./pages/Calendar";
+import EventCreation from "./pages/dashboard/EventCreation";
 
 function App() {
   const { user } = useAuth();
@@ -34,9 +40,28 @@ function App() {
               </PrivateRoute>
             }
           >
-            <Route index element={<Overview />} />
-            <Route path="events" element={<div>Events Page</div>} />
-            <Route path="feedback" element={<div>Feedback Page</div>} />
+            <Route index element={<Dashboard />} />
+            <Route path="events" element={<EventListing />} />
+
+            {/* Banker & Assistant */}
+            <Route
+              path="/dashboard/events/:eventId/add-guest"
+              element={<AddGuest />}
+            />
+
+            {/* Manager only */}
+            <Route
+              path="/dashboard/events/:eventId/approve-guests"
+              element={<ApproveGuests />}
+            />
+
+            {/* Marketing only */}
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="calendar" element={<EventCalendar />} />
+            <Route
+              path="/dashboard/events/create"
+              element={<EventCreation />}
+            />
           </Route>
 
           {/* 🔐 Example: Only managers can access this route */}

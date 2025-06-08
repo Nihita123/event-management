@@ -1,7 +1,10 @@
 import mongoose from "mongoose";
+
 const guestSchema = new mongoose.Schema(
   {
-    name: String,
+    name: { type: String, required: true },
+    email: { type: String, required: true }, // 👈 Add this
+    phone: { type: String, required: true }, // 👈 And this
     type: { type: String, enum: ["existing", "prospect", "staff"] },
     AUM: Number,
     revenue: Number,
@@ -12,4 +15,5 @@ const guestSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
 export default mongoose.model("Guest", guestSchema);

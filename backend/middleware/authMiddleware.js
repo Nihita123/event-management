@@ -19,3 +19,17 @@ export const protect = async (req, res, next) => {
     res.status(401).json({ message: "No token provided" });
   }
 };
+
+export const isManager = (req, res, next) => {
+  if (req.user?.role !== "manager") {
+    return res.status(403).json({ message: "Access denied. Manager only." });
+  }
+  next();
+};
+
+export const isMarketing = (req, res, next) => {
+  if (req.user?.role === "marketing") {
+    return next();
+  }
+  return res.status(403).json({ message: "Access denied: Marketing only" });
+};

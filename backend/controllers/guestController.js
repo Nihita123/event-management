@@ -1,7 +1,15 @@
 import Guest from "../models/Guest.js";
 
 export const addGuest = async (req, res) => {
-  const guest = await Guest.create({ ...req.body, submittedBy: req.user._id });
+  const { name, email, phone, event, type } = req.body;
+
+  if (!type || !["Existing Client", "Prospect", "Staff"].includes(type)) {
+    return res.status(400).json({ message: "Invalid guest type" });
+  }
+
+  const guest = new Guest({ name, email, phone, event, type });
+  await guest.save();
+
   res.status(201).json(guest);
 };
 
