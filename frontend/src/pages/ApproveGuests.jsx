@@ -17,6 +17,7 @@ const ApproveGuests = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const { eventId } = useParams();
 
+  const anyPendingApproval = guests.some((guest) => !guest.approved);
   useEffect(() => {
     const fetchGuests = async () => {
       try {
@@ -72,6 +73,8 @@ const ApproveGuests = () => {
   const handleApproveAll = async () => {
     try {
       const token = localStorage.getItem("token");
+      console.log("Sending request to approve all guests for event:", eventId);
+
       const res = await axiosInstance.post(
         `/events/${eventId}/approve-all`,
         {},
@@ -79,9 +82,16 @@ const ApproveGuests = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+
+      console.log("Server response for approve all:", res.data);
       alert(res.data.message);
-      window.location.reload();
+
+      window.location.reload(); // or replace with setGuests update if desired
     } catch (err) {
+      console.error(
+        "Error during approve all:",
+        err.response?.data || err.message
+      );
       alert(err.response?.data?.message || "Failed to approve guests.");
     }
   };
@@ -114,6 +124,16 @@ const ApproveGuests = () => {
           {errorMsg}
         </p>
       )}
+
+      <p
+        className={`text-center mb-6 font-semibold ${
+          anyPendingApproval ? "text-yellow-600" : "text-green-600"
+        }`}
+      >
+        {anyPendingApproval
+          ? "Awaiting your approval for some guests."
+          : "All guests have been approved 🎉"}
+      </p>
 
       <div className="mb-4 text-right">
         <Button onClick={handleApproveAll} className="bg-black text-white">

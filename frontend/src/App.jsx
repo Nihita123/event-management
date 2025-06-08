@@ -14,6 +14,7 @@ import ApproveGuests from "./pages/ApproveGuests";
 import Analytics from "./pages/Analytics";
 import EventCalendar from "./pages/Calendar";
 import EventCreation from "./pages/dashboard/EventCreation";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ function App() {
   return (
     <>
       <Navbar />
+      <Toaster position="top-right" />
       <div className="pt-16">
         <Routes>
           <Route

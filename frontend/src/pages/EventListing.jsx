@@ -5,6 +5,10 @@ import { Button } from "@/components/ui/button";
 import axiosInstance from "@/utils/axiosInstance";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { exportToCSV } from "@/utils/exportCSV";
+import { toast, Toaster } from "react-hot-toast";
+
+import GuestEditModal from "./GuestEditModal";
 
 const EventListing = () => {
   const [events, setEvents] = useState([]);
@@ -12,13 +16,71 @@ const EventListing = () => {
   const [search, setSearch] = useState("");
   const { user } = useAuth();
 
+  const [selectedEventId, setSelectedEventId] = useState(null);
+  const [guests, setGuests] = useState([]);
+
+  const [editModeEventId, setEditModeEventId] = useState(null);
+  const [initialGuestsForEdit, setInitialGuestsForEdit] = useState([]);
+
+  // New state to track pending approvals count
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+
+  const fetchGuestsForEvent = async (eventId) => {
+    try {
+      const res = await axiosInstance.get(`/events/${eventId}/guests`);
+      if (Array.isArray(res.data)) setGuests(res.data);
+      else setGuests([]);
+    } catch (err) {
+      console.error("Failed to fetch guests", err);
+      setGuests([]);
+    }
+  };
+
+  // After fetching events, fetch guests for each event and update event object
+  const fetchGuestApprovalStatusForEvents = async (eventsList) => {
+    const updatedEvents = await Promise.all(
+      eventsList.map(async (event) => {
+        try {
+          const res = await axiosInstance.get(`/events/${event._id}/guests`);
+          const guests = Array.isArray(res.data) ? res.data : [];
+          const allApproved =
+            guests.length > 0 && guests.every((g) => g.approved);
+          return { ...event, allGuestsApproved: allApproved };
+        } catch {
+          // If error fetching guests, assume not all approved
+          return { ...event, allGuestsApproved: false };
+        }
+      })
+    );
+    return updatedEvents;
+  };
+
+  const handleExport = () => {
+    if (!guests.length) return;
+
+    const headers = ["Name", "Email", "Phone", "Type", "Approved"];
+    const rows = guests.map((g) => [
+      g.name,
+      g.email || "",
+      g.phone || "",
+      g.type || "",
+      g.approved ? "Yes" : "No",
+    ]);
+
+    exportToCSV(`guests_event_${selectedEventId}.csv`, headers, rows);
+  };
+
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         const res = await axiosInstance.get("/events");
         if (Array.isArray(res.data)) {
-          setEvents(res.data);
-          setFiltered(res.data);
+          // fetch guest approval status for each event
+          const eventsWithApproval = await fetchGuestApprovalStatusForEvents(
+            res.data
+          );
+          setEvents(eventsWithApproval);
+          setFiltered(eventsWithApproval);
         } else {
           setEvents([]);
           setFiltered([]);
@@ -62,12 +124,87 @@ const EventListing = () => {
   const isManager = user?.role === "manager";
   const isMarketing = user?.role === "marketing";
 
+  // Open guest edit modal and load guests for that event
+  const openEditGuestModal = async (eventId) => {
+    try {
+      const res = await axiosInstance.get(`/events/${eventId}/guests`);
+      setInitialGuestsForEdit(res.data || []);
+      setEditModeEventId(eventId);
+    } catch (err) {
+      alert("Failed to fetch guests");
+    }
+  };
+
+  // Real-time polling for pending approvals (for managers only)
+  useEffect(() => {
+    if (!isManager) return;
+
+    let lastCount = 0;
+
+    const fetchPendingApprovals = async () => {
+      try {
+        // Fetch all submitted events
+        const res = await axiosInstance.get("/events?status=submitted");
+        if (Array.isArray(res.data)) {
+          const events = res.data;
+
+          let pendingCount = 0;
+
+          await Promise.all(
+            events.map(async (event) => {
+              try {
+                const guestRes = await axiosInstance.get(
+                  `/events/${event._id}/guests`
+                );
+                const guests = Array.isArray(guestRes.data)
+                  ? guestRes.data
+                  : [];
+                const hasPendingGuests = guests.some((g) => !g.approved);
+                if (hasPendingGuests) pendingCount++;
+              } catch {
+                // If guests fetch fails, assume pending approval
+                pendingCount++;
+              }
+            })
+          );
+
+          setPendingApprovalCount(pendingCount);
+
+          // Show toast only if count changed and is > 0
+          if (pendingCount > 0 && pendingCount !== lastCount) {
+            toast(
+              `⚠️ You have ${pendingCount} event(s) with guests pending approval!`
+            );
+          }
+          lastCount = pendingCount;
+        }
+      } catch (error) {
+        console.error("Failed to fetch pending approvals", error);
+      }
+    };
+
+    fetchPendingApprovals();
+    const intervalId = setInterval(fetchPendingApprovals, 20000); // every 20 sec
+
+    return () => clearInterval(intervalId);
+  }, [isManager]);
+
   return (
     <div className="p-6 bg-white min-h-screen">
+      <Toaster position="top-right" />
+
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-black mb-6 text-center">
           Event Listings
         </h1>
+
+        {/* Notification banner for pending approvals */}
+        {isManager && pendingApprovalCount > 0 && (
+          <div className="bg-yellow-300 text-black p-3 mb-6 rounded text-center font-semibold">
+            ⚠️ You have {pendingApprovalCount} event(s) pending approval! Please
+            review.
+          </div>
+        )}
 
         <div className="mb-8 max-w-lg mx-auto">
           <Input
@@ -78,7 +215,7 @@ const EventListing = () => {
           />
         </div>
 
-        {user?.role === "marketing" && (
+        {isMarketing && (
           <div className="mb-6 text-right">
             <Link to="/dashboard/events/create">
               <Button className="bg-green-600 text-white hover:bg-green-700">
@@ -107,23 +244,17 @@ const EventListing = () => {
                 </p>
 
                 <div className="flex flex-col gap-2 pt-4">
-                  {/* Guests management for allowed roles */}
-                  {(isBankerOrAssistant || isManager) && (
-                    <>
-                      <Link
-                        to={`/dashboard/events/${event._id}/approve-guests`}
+                  {isManager && (
+                    <Link to={`/dashboard/events/${event._id}/approve-guests`}>
+                      <Button
+                        variant="outline"
+                        className="w-full border border-black text-black hover:bg-gray-100"
                       >
-                        <Button
-                          variant="outline"
-                          className="w-full border border-black text-black hover:bg-gray-100"
-                        >
-                          Manage Guests
-                        </Button>
-                      </Link>
-                    </>
+                        Manage Guests
+                      </Button>
+                    </Link>
                   )}
 
-                  {/* Add Guest only for banker or assistant */}
                   {isBankerOrAssistant && event.status === "draft" && (
                     <Link to={`/dashboard/events/${event._id}/add-guest`}>
                       <Button className="w-full bg-black text-white hover:opacity-90">
@@ -133,12 +264,37 @@ const EventListing = () => {
                   )}
                 </div>
 
-                {/* Submit button for banker or assistant */}
+                {isBankerOrAssistant && event.status === "submitted" && (
+                  <Button
+                    onClick={() => openEditGuestModal(event._id)}
+                    variant="outline"
+                    className="w-full border border-black text-black hover:bg-gray-100 mt-2"
+                  >
+                    Update Guest List
+                  </Button>
+                )}
+
+                {isMarketing && (
+                  <Button
+                    onClick={() => {
+                      setSelectedEventId(event._id);
+                      fetchGuestsForEvent(event._id).then(() => {
+                        handleExport();
+                      });
+                    }}
+                    variant="outline"
+                    className="w-full border border-black text-black hover:bg-gray-100 mt-2"
+                  >
+                    Export Guest List CSV
+                  </Button>
+                )}
+
                 {isBankerOrAssistant &&
                   (event.status === "draft" ? (
                     <Button
                       onClick={() => handleSubmitGuestList(event._id)}
-                      className="bg-blue-600 text-white mt-2"
+                      variant="outline"
+                      className="w-full border border-black text-black hover:bg-gray-100 mt-2"
                     >
                       Submit Guest List
                     </Button>
@@ -148,10 +304,17 @@ const EventListing = () => {
                     </p>
                   ))}
 
-                {/* Manager note (optional) */}
                 {isManager && event.status === "submitted" && (
-                  <p className="text-sm text-blue-700 mt-2">
-                    Awaiting your approval
+                  <p
+                    className={`text-sm mt-2 ${
+                      event.allGuestsApproved
+                        ? "text-green-700"
+                        : "text-blue-700"
+                    }`}
+                  >
+                    {event.allGuestsApproved
+                      ? "All guests approved 🎉"
+                      : "Awaiting your approval"}
                   </p>
                 )}
               </CardContent>
@@ -164,6 +327,18 @@ const EventListing = () => {
             No events found.
           </p>
         )}
+
+        <GuestEditModal
+          eventId={editModeEventId}
+          open={!!editModeEventId}
+          onClose={() => {
+            setEditModeEventId(null);
+            setInitialGuestsForEdit([]);
+          }}
+          onGuestListUpdated={() => {
+            window.location.reload(); // simplest refresh for now
+          }}
+        />
       </div>
     </div>
   );

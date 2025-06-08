@@ -7,6 +7,7 @@ import {
   deleteEvent,
   submitGuestList,
 } from "../controllers/eventController.js";
+import { approveAllGuests } from "../controllers/eventController.js";
 import {
   protect,
   isManager,
@@ -26,23 +27,18 @@ router
   .put(protect, updateEvent)
   .delete(protect, deleteEvent);
 router.post("/:eventId/submit", protect, submitGuestList);
-// POST /api/events/:eventId/approve-all
-router.post("/:eventId/approve-all", protect, isManager, async (req, res) => {
+
+router.post("/:eventId/approve-all", protect, approveAllGuests);
+
+router.get("/:eventId/guests", async (req, res) => {
+  const { eventId } = req.params;
   try {
-    const { eventId } = req.params;
-
-    const event = await Event.findById(eventId);
-    if (!event) {
-      return res.status(404).json({ message: "Event not found" });
-    }
-
-    // Bulk approve guests
-    await Guest.updateMany({ event: eventId }, { $set: { approved: true } });
-
-    res.status(200).json({ message: "All guests approved successfully." });
+    const guests = await Guest.find({ eventId }); // ✅ use eventId
+    if (!guests || guests.length === 0)
+      return res.status(404).json({ message: "No guests found" });
+    res.json(guests);
   } catch (err) {
-    console.error("Approve All Guests Error:", err);
-    res.status(500).json({ message: "Server error during approval." });
+    res.status(500).json({ message: err.message });
   }
 });
 

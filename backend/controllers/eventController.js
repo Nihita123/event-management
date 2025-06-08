@@ -27,6 +27,28 @@ export const submitGuestList = async (req, res) => {
   }
 };
 
+export const approveAllGuests = async (req, res) => {
+  const { eventId } = req.params;
+  const userId = req.user?._id;
+
+  console.log("Received approve-all request for eventId:", eventId);
+  console.log("Approving guests by userId:", userId);
+
+  try {
+    const result = await Guest.updateMany(
+      { eventId, approved: false },
+      { approved: true, approvedBy: userId }
+    );
+
+    console.log(`Guests approved: ${result.modifiedCount}`);
+
+    res.json({ message: `${result.modifiedCount} guests approved.` });
+  } catch (err) {
+    console.error("Error in approveAllGuests controller:", err);
+    res.status(500).json({ message: "Failed to approve all guests" });
+  }
+};
+
 // controllers/eventController.js
 export const createEvent = async (req, res) => {
   try {
