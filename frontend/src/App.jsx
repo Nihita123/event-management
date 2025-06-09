@@ -15,6 +15,7 @@ import Analytics from "./pages/Analytics";
 import EventCalendar from "./pages/Calendar";
 import EventCreation from "./pages/dashboard/EventCreation";
 import { Toaster } from "react-hot-toast";
+import Home from "@/pages/Home";
 
 function App() {
   const { user } = useAuth();
@@ -25,10 +26,7 @@ function App() {
       <Toaster position="top-right" />
       <div className="pt-16">
         <Routes>
-          <Route
-            path="/"
-            element={<Navigate to={user ? "/dashboard" : "/login"} />}
-          />
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/unauthorized" element={<Unauthorized />} />

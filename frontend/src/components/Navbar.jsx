@@ -39,7 +39,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="text-xl font-bold text-primary">
-          EventMVP
+          NextUp
         </Link>
 
         {/* Desktop Nav */}
