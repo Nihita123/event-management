@@ -7,7 +7,6 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { exportToCSV } from "@/utils/exportCSV";
 import { toast, Toaster } from "react-hot-toast";
-
 import GuestEditModal from "./GuestEditModal";
 
 const EventListing = () => {
@@ -18,12 +17,10 @@ const EventListing = () => {
 
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [guests, setGuests] = useState([]);
-
   const [editModeEventId, setEditModeEventId] = useState(null);
   const [initialGuestsForEdit, setInitialGuestsForEdit] = useState([]);
-
-  // New state to track pending approvals count
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+  const [loading, setLoading] = useState(true); // ✅ New loading state
 
   const fetchGuestsForEvent = async (eventId) => {
     try {
@@ -36,7 +33,6 @@ const EventListing = () => {
     }
   };
 
-  // After fetching events, fetch guests for each event and update event object
   const fetchGuestApprovalStatusForEvents = async (eventsList) => {
     const updatedEvents = await Promise.all(
       eventsList.map(async (event) => {
@@ -47,7 +43,6 @@ const EventListing = () => {
             guests.length > 0 && guests.every((g) => g.approved);
           return { ...event, allGuestsApproved: allApproved };
         } catch {
-          // If error fetching guests, assume not all approved
           return { ...event, allGuestsApproved: false };
         }
       })
@@ -57,7 +52,6 @@ const EventListing = () => {
 
   const handleExport = () => {
     if (!guests.length) return;
-
     const headers = ["Name", "Email", "Phone", "Type", "Approved"];
     const rows = guests.map((g) => [
       g.name,
@@ -66,16 +60,15 @@ const EventListing = () => {
       g.type || "",
       g.approved ? "Yes" : "No",
     ]);
-
     exportToCSV(`guests_event_${selectedEventId}.csv`, headers, rows);
   };
 
   useEffect(() => {
     const fetchEvents = async () => {
+      setLoading(true); // ✅ Start loading
       try {
         const res = await axiosInstance.get("/events");
         if (Array.isArray(res.data)) {
-          // fetch guest approval status for each event
           const eventsWithApproval = await fetchGuestApprovalStatusForEvents(
             res.data
           );
@@ -89,6 +82,8 @@ const EventListing = () => {
         console.error("Failed to fetch events", err);
         setEvents([]);
         setFiltered([]);
+      } finally {
+        setLoading(false); // ✅ End loading
       }
     };
     fetchEvents();
@@ -111,7 +106,6 @@ const EventListing = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
       alert(res.data.message);
       window.location.reload();
     } catch (err) {
@@ -124,7 +118,6 @@ const EventListing = () => {
   const isManager = user?.role === "manager";
   const isMarketing = user?.role === "marketing";
 
-  // Open guest edit modal and load guests for that event
   const openEditGuestModal = async (eventId) => {
     try {
       const res = await axiosInstance.get(`/events/${eventId}/guests`);
@@ -135,21 +128,16 @@ const EventListing = () => {
     }
   };
 
-  // Real-time polling for pending approvals (for managers only)
   useEffect(() => {
     if (!isManager) return;
-
     let lastCount = 0;
 
     const fetchPendingApprovals = async () => {
       try {
-        // Fetch all submitted events
         const res = await axiosInstance.get("/events?status=submitted");
         if (Array.isArray(res.data)) {
           const events = res.data;
-
           let pendingCount = 0;
-
           await Promise.all(
             events.map(async (event) => {
               try {
@@ -162,7 +150,6 @@ const EventListing = () => {
                 const hasPendingGuests = guests.some((g) => !g.approved);
                 if (hasPendingGuests) pendingCount++;
               } catch {
-                // If guests fetch fails, assume pending approval
                 pendingCount++;
               }
             })
@@ -170,7 +157,6 @@ const EventListing = () => {
 
           setPendingApprovalCount(pendingCount);
 
-          // Show toast only if count changed and is > 0
           if (pendingCount > 0 && pendingCount !== lastCount) {
             toast(
               `⚠️ You have ${pendingCount} event(s) with guests pending approval!`
@@ -184,8 +170,7 @@ const EventListing = () => {
     };
 
     fetchPendingApprovals();
-    const intervalId = setInterval(fetchPendingApprovals, 20000); // every 20 sec
-
+    const intervalId = setInterval(fetchPendingApprovals, 20000);
     return () => clearInterval(intervalId);
   }, [isManager]);
 
@@ -198,7 +183,6 @@ const EventListing = () => {
           Event Listings
         </h1>
 
-        {/* Notification banner for pending approvals */}
         {isManager && pendingApprovalCount > 0 && (
           <div className="bg-yellow-300 text-black p-3 mb-6 rounded text-center font-semibold">
             ⚠️ You have {pendingApprovalCount} event(s) pending approval! Please
@@ -225,107 +209,118 @@ const EventListing = () => {
           </div>
         )}
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((event) => (
-            <Card
-              key={event._id}
-              className="bg-white border border-gray-300 rounded-xl shadow-sm hover:shadow-md transition-shadow"
-            >
-              <CardContent className="p-5 space-y-2">
-                <h2 className="text-xl font-semibold text-black">
-                  {event.title}
-                </h2>
-                <p className="text-sm text-gray-600">
-                  {new Date(event.date).toLocaleDateString()}
-                </p>
-                <p className="text-sm text-gray-700">{event.location}</p>
-                <p className="text-sm text-gray-800 line-clamp-3">
-                  {event.description}
-                </p>
-
-                <div className="flex flex-col gap-2 pt-4">
-                  {isManager && (
-                    <Link to={`/dashboard/events/${event._id}/approve-guests`}>
-                      <Button
-                        variant="outline"
-                        className="w-full border border-black text-black hover:bg-gray-100"
-                      >
-                        Manage Guests
-                      </Button>
-                    </Link>
-                  )}
-
-                  {isBankerOrAssistant && event.status === "draft" && (
-                    <Link to={`/dashboard/events/${event._id}/add-guest`}>
-                      <Button className="w-full bg-black text-white hover:opacity-90">
-                        Add Guest
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-
-                {isBankerOrAssistant && event.status === "submitted" && (
-                  <Button
-                    onClick={() => openEditGuestModal(event._id)}
-                    variant="outline"
-                    className="w-full border border-black text-black hover:bg-gray-100 mt-2"
-                  >
-                    Update Guest List
-                  </Button>
-                )}
-
-                {isMarketing && (
-                  <Button
-                    onClick={() => {
-                      setSelectedEventId(event._id);
-                      fetchGuestsForEvent(event._id).then(() => {
-                        handleExport();
-                      });
-                    }}
-                    variant="outline"
-                    className="w-full border border-black text-black hover:bg-gray-100 mt-2"
-                  >
-                    Export Guest List CSV
-                  </Button>
-                )}
-
-                {isBankerOrAssistant &&
-                  (event.status === "draft" ? (
-                    <Button
-                      onClick={() => handleSubmitGuestList(event._id)}
-                      variant="outline"
-                      className="w-full border border-black text-black hover:bg-gray-100 mt-2"
-                    >
-                      Submit Guest List
-                    </Button>
-                  ) : (
-                    <p className="text-sm text-green-700 mt-2">
-                      Submitted to Manager ✅
-                    </p>
-                  ))}
-
-                {isManager && event.status === "submitted" && (
-                  <p
-                    className={`text-sm mt-2 ${
-                      event.allGuestsApproved
-                        ? "text-green-700"
-                        : "text-blue-700"
-                    }`}
-                  >
-                    {event.allGuestsApproved
-                      ? "All guests approved 🎉"
-                      : "Awaiting your approval"}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filtered.length === 0 && (
-          <p className="text-center text-gray-500 mt-12 text-lg">
-            No events found.
+        {/* ✅ Loader display */}
+        {loading ? (
+          <p className="text-center text-lg text-gray-600 mt-20">
+            Loading events...
           </p>
+        ) : (
+          <>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((event) => (
+                <Card
+                  key={event._id}
+                  className="bg-white border border-gray-300 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <CardContent className="p-5 space-y-2">
+                    <h2 className="text-xl font-semibold text-black">
+                      {event.title}
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      {new Date(event.date).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-gray-700">{event.location}</p>
+                    <p className="text-sm text-gray-800 line-clamp-3">
+                      {event.description}
+                    </p>
+
+                    <div className="flex flex-col gap-2 pt-4">
+                      {isManager && (
+                        <Link
+                          to={`/dashboard/events/${event._id}/approve-guests`}
+                        >
+                          <Button
+                            variant="outline"
+                            className="w-full border border-black text-black hover:bg-gray-100"
+                          >
+                            Manage Guests
+                          </Button>
+                        </Link>
+                      )}
+
+                      {isBankerOrAssistant && event.status === "draft" && (
+                        <Link to={`/dashboard/events/${event._id}/add-guest`}>
+                          <Button className="w-full bg-black text-white hover:opacity-90">
+                            Add Guest
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+
+                    {isBankerOrAssistant && event.status === "submitted" && (
+                      <Button
+                        onClick={() => openEditGuestModal(event._id)}
+                        variant="outline"
+                        className="w-full border border-black text-black hover:bg-gray-100 mt-2"
+                      >
+                        Update Guest List
+                      </Button>
+                    )}
+
+                    {isMarketing && (
+                      <Button
+                        onClick={() => {
+                          setSelectedEventId(event._id);
+                          fetchGuestsForEvent(event._id).then(() => {
+                            handleExport();
+                          });
+                        }}
+                        variant="outline"
+                        className="w-full border border-black text-black hover:bg-gray-100 mt-2"
+                      >
+                        Export Guest List CSV
+                      </Button>
+                    )}
+
+                    {isBankerOrAssistant &&
+                      (event.status === "draft" ? (
+                        <Button
+                          onClick={() => handleSubmitGuestList(event._id)}
+                          variant="outline"
+                          className="w-full border border-black text-black hover:bg-gray-100 mt-2"
+                        >
+                          Submit Guest List
+                        </Button>
+                      ) : (
+                        <p className="text-sm text-green-700 mt-2">
+                          Submitted to Manager ✅
+                        </p>
+                      ))}
+
+                    {isManager && event.status === "submitted" && (
+                      <p
+                        className={`text-sm mt-2 ${
+                          event.allGuestsApproved
+                            ? "text-green-700"
+                            : "text-blue-700"
+                        }`}
+                      >
+                        {event.allGuestsApproved
+                          ? "All guests approved 🎉"
+                          : "Awaiting your approval"}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {filtered.length === 0 && (
+              <p className="text-center text-gray-500 mt-12 text-lg">
+                No events found.
+              </p>
+            )}
+          </>
         )}
 
         <GuestEditModal
@@ -336,7 +331,7 @@ const EventListing = () => {
             setInitialGuestsForEdit([]);
           }}
           onGuestListUpdated={() => {
-            window.location.reload(); // simplest refresh for now
+            window.location.reload();
           }}
         />
       </div>
