@@ -16,6 +16,7 @@ import EventCalendar from "./pages/Calendar";
 import EventCreation from "./pages/dashboard/EventCreation";
 import { Toaster } from "react-hot-toast";
 import Home from "@/pages/Home";
+import BankerGuestList from "./pages/BankerGuestList";
 
 function App() {
   const { user } = useAuth();
@@ -48,6 +49,7 @@ function App() {
               path="/dashboard/events/:eventId/add-guest"
               element={<AddGuest />}
             />
+            <Route path="/dashboard/my-guests" element={<BankerGuestList />} />
 
             {/* Manager only */}
             <Route
