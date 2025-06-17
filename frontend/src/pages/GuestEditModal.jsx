@@ -8,6 +8,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import axiosInstance from "@/utils/axiosInstance";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const GuestEditModal = ({ eventId, open, onClose, onGuestListUpdated }) => {
   const [guests, setGuests] = useState([]);
@@ -31,7 +38,10 @@ const GuestEditModal = ({ eventId, open, onClose, onGuestListUpdated }) => {
   };
 
   const handleAddGuest = () => {
-    setGuests((prev) => [...prev, { name: "", email: "", phone: "" }]);
+    setGuests((prev) => [
+      ...prev,
+      { name: "", email: "", phone: "", type: "" },
+    ]);
   };
 
   const handleDelete = async (guestId, index) => {
@@ -73,7 +83,7 @@ const GuestEditModal = ({ eventId, open, onClose, onGuestListUpdated }) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto bg-white border border-black text-black">
+      <DialogContent className="w-[1100px] max-w-none !max-w-none max-h-[85vh] overflow-auto bg-white border border-black text-black px-6 py-4">
         <DialogHeader>
           <DialogTitle className="text-black">Edit Guest List</DialogTitle>
         </DialogHeader>
@@ -82,7 +92,7 @@ const GuestEditModal = ({ eventId, open, onClose, onGuestListUpdated }) => {
           {guests.map((guest, index) => (
             <div
               key={guest._id || index}
-              className="grid grid-cols-4 gap-4 items-center"
+              className="grid grid-cols-5 gap-6 items-center"
             >
               <Input
                 value={guest.name}
@@ -102,6 +112,23 @@ const GuestEditModal = ({ eventId, open, onClose, onGuestListUpdated }) => {
                 placeholder="Phone"
                 className="bg-white border-black text-black"
               />
+
+              <Select
+                value={guest.type}
+                onValueChange={(value) => handleChange(index, "type", value)}
+              >
+                <SelectTrigger className="bg-white border-black text-black">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Existing Client">
+                    Existing Client
+                  </SelectItem>
+                  <SelectItem value="Prospect">Prospect</SelectItem>
+                  <SelectItem value="Staff">Staff</SelectItem>
+                </SelectContent>
+              </Select>
+
               <Button
                 variant="outline"
                 className="border border-black text-black hover:bg-gray-100"

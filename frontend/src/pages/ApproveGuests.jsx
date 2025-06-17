@@ -22,10 +22,14 @@ const ApproveGuests = () => {
     const fetchGuests = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem("authToken");
         const res = await axiosInstance.get(`/guests/event/${eventId}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }, // uses token
         });
+
+        console.log("Fetched guest response:", res.data);
+        // just a debug log
+        console.log("Current token:", token);
 
         const guestData = Array.isArray(res.data) ? res.data : [];
         setGuests(guestData);
@@ -48,7 +52,7 @@ const ApproveGuests = () => {
     try {
       setApprovingId(id);
       setErrorMsg("");
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("authToken");
       await axiosInstance.patch(
         `/guests/${id}/approve`,
         {},
@@ -56,6 +60,7 @@ const ApproveGuests = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+
       setGuests((prev) =>
         prev.map((guest) =>
           guest._id === id ? { ...guest, approved: true } : guest

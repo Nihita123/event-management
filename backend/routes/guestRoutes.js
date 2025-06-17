@@ -13,7 +13,7 @@ router.route("/:id").delete(protect, deleteGuest);
 router.route("/:id/approve").patch(protect, approveGuest);
 router
   .route("/event/:eventId")
-  .get(protect, authorizeRoles("organizer", "banker"), getGuestsByEvent);
+  .get(protect, authorizeRoles("manager", "banker"), getGuestsByEvent);
 router.patch("/:eventId/guests", protect, updateGuests);
 
 export default router;
