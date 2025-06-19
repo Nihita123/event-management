@@ -147,8 +147,11 @@ const EventListing = () => {
                 const guests = Array.isArray(guestRes.data)
                   ? guestRes.data
                   : [];
-                const hasPendingGuests = guests.some((g) => !g.approved);
-                if (hasPendingGuests) pendingCount++;
+                const hasUnapprovedGuests =
+                  guests.length > 0 && guests.some((g) => !g.approved);
+                if (hasUnapprovedGuests) {
+                  pendingCount++;
+                }
               } catch {
                 pendingCount++;
               }
@@ -173,6 +176,24 @@ const EventListing = () => {
     const intervalId = setInterval(fetchPendingApprovals, 20000);
     return () => clearInterval(intervalId);
   }, [isManager]);
+
+  const handleDeleteEvent = async (eventId) => {
+    if (!window.confirm("Are you sure you want to delete this event?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      await axiosInstance.delete(`/events/${eventId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success("Event deleted successfully!");
+      // Refresh the list
+      setEvents((prev) => prev.filter((e) => e._id !== eventId));
+      setFiltered((prev) => prev.filter((e) => e._id !== eventId));
+    } catch (err) {
+      console.error("Failed to delete event", err);
+      toast.error(err.response?.data?.message || "Failed to delete event");
+    }
+  };
 
   return (
     <div className="p-6 bg-white min-h-screen">
@@ -268,18 +289,27 @@ const EventListing = () => {
                     )}
 
                     {isMarketing && (
-                      <Button
-                        onClick={() => {
-                          setSelectedEventId(event._id);
-                          fetchGuestsForEvent(event._id).then(() => {
-                            handleExport();
-                          });
-                        }}
-                        variant="outline"
-                        className="w-full border border-black text-black hover:bg-gray-100 mt-2"
-                      >
-                        Export Guest List CSV
-                      </Button>
+                      <>
+                        <Button
+                          onClick={() => {
+                            setSelectedEventId(event._id);
+                            fetchGuestsForEvent(event._id).then(() => {
+                              handleExport();
+                            });
+                          }}
+                          variant="outline"
+                          className="w-full border border-black text-black hover:bg-gray-100 mt-2"
+                        >
+                          Export Guest List CSV
+                        </Button>
+
+                        <Button
+                          onClick={() => handleDeleteEvent(event._id)}
+                          className="w-full bg-red-400 text-white hover:bg-red-500 mt-2"
+                        >
+                          Delete Event
+                        </Button>
+                      </>
                     )}
 
                     {isBankerOrAssistant &&
