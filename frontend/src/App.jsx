@@ -17,6 +17,7 @@ import EventCreation from "./pages/dashboard/EventCreation";
 import { Toaster } from "react-hot-toast";
 import Home from "@/pages/Home";
 import BankerGuestList from "./pages/BankerGuestList";
+import OAuthSuccess from "@/pages/OAuthSuccess";
 
 function App() {
   const { user } = useAuth();
@@ -31,6 +32,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/oauth-success" element={<OAuthSuccess />} />
 
           {/* 🛡️ Protected Dashboard Route (all roles) */}
           <Route

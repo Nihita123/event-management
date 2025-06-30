@@ -38,6 +38,10 @@ const Login = () => {
     setLoading(false);
   };
 
+  const googleLogin = () => {
+    window.location.href = "http://localhost:5000/api/auth/google";
+  };
+
   return (
     <div className="flex justify-center items-center min-h-screen bg-muted px-4">
       <Card className="w-full max-w-md shadow-md">
@@ -45,6 +49,9 @@ const Login = () => {
           <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <Button onClick={googleLogin} variant="outline" className="w-full">
+            Continue with Google
+          </Button>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <Label htmlFor="email">Email</Label>

@@ -43,6 +43,10 @@ const Register = () => {
     setLoading(false);
   };
 
+  const googleLogin = () => {
+    window.location.href = "http://localhost:5000/api/auth/google";
+  };
+
   return (
     <div className="flex justify-center items-center min-h-screen bg-muted px-4">
       <Card className="w-full max-w-md shadow-md">
@@ -52,6 +56,11 @@ const Register = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* 👇 Google Button at the top */}
+          <Button onClick={googleLogin} variant="outline" className="w-full">
+            Continue with Google
+          </Button>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
               <Label htmlFor="name">Name</Label>
